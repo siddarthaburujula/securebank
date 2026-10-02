@@ -1,0 +1,52 @@
+# ==============================================================================
+# Git Ignore for SecureBank Banking Platform (Root)
+# ==============================================================================
+
+# Compiled Java artifacts
+*.class
+target/
+backend/target/
+**/target/
+
+# Log files
+*.log
+backend/*.log
+server*.log
+
+# Maven temporary files
+.mvn/.attach_to_outer_project
+
+# Node dependencies and builds
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+**/node_modules/
+**/dist/
+
+# IDEs and Editors
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+.settings/
+.project
+.classpath
+.factorypath
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+
+# Temp and backup files
+*.tmp
+*.bak
+*.swp
+*~

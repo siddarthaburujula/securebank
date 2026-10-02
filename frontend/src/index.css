@@ -1,0 +1,126 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-heading: 'Outfit', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    
+    /* HDFC Premier Corporate Palette */
+    --bank-navy: #004c8f;
+    --bank-dark-navy: #002e6e;
+    --bank-deep: #001f4d;
+    --bank-red: #ed1c24;
+    --bank-red-hover: #c9141b;
+    --bank-light-blue: #e8f1f9;
+    --bank-bg: #f4f6fa;
+    --bank-card: #ffffff;
+    --bank-border: #e2e8f0;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--bank-bg);
+    color: #1e293b;
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+    letter-spacing: -0.015em;
+  }
+
+  code, pre {
+    font-family: var(--font-mono);
+  }
+}
+
+/* Custom Financial Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Banking Component Utilities */
+.bank-header-gradient {
+  background: linear-gradient(135deg, #002e6e 0%, #004c8f 100%);
+}
+
+.bank-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease-in-out;
+}
+
+.bank-card:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+}
+
+.bank-button-primary {
+  background-color: #004c8f;
+  color: #ffffff;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  transition: all 0.15s ease-in-out;
+}
+
+.bank-button-primary:hover {
+  background-color: #003666;
+}
+
+.bank-button-action {
+  background-color: #ed1c24;
+  color: #ffffff;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  transition: all 0.15s ease-in-out;
+}
+
+.bank-button-action:hover {
+  background-color: #c9141b;
+}
+
+.bank-badge-active {
+  background-color: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.bank-badge-dormant {
+  background-color: #fffbeb;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+.bank-badge-frozen {
+  background-color: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+/* Financial table styling */
+.bank-table-row:nth-child(even) {
+  background-color: #f8fafc;
+}
+
+.bank-table-row:hover {
+  background-color: #f1f5f9;
+}

@@ -1,0 +1,275 @@
+{
+  "info": {
+    "name": "SecureBank API Collection",
+    "_postman_id": "securebank-v1",
+    "description": "Complete API test suite for SecureBank.\n\nCredentials:\n- siddartha / Password@123 (Customer, ₹50k balance)\n- rahul / Password@123 (Customer, ₹10k balance)\n- vikram / Password@123 (Dormant account demo)\n- admin / Admin@123 (Administrator)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080", "type": "string" },
+    { "key": "token", "value": "", "type": "string" },
+    { "key": "adminToken", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "request": { "method": "GET", "url": "{{baseUrl}}/api/health" },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));", "pm.test('DB connected', () => pm.expect(pm.response.json().data.database).to.equal('CONNECTED'));"] } }]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register Customer",
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/api/auth/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"username\": \"demouser\",\n  \"password\": \"Password@123\",\n  \"fullName\": \"Demo User\",\n  \"email\": \"demo@securebank.com\",\n  \"phoneNumber\": \"+919999988888\",\n  \"dateOfBirth\": \"1995-06-15\",\n  \"address\": \"456 Demo Street, Hyderabad, Telangana - 500032\",\n  \"initialBalance\": 10000.00\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('201 Created', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "Login (Siddartha - Customer)",
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/api/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"usernameOrEmail\": \"siddartha\",\n  \"password\": \"Password@123\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200 OK', () => pm.response.to.have.status(200));", "const d = pm.response.json().data;", "pm.expect(d.token).to.be.a('string');", "pm.collectionVariables.set('token', d.token);"] } }]
+        },
+        {
+          "name": "Login (Admin)",
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/api/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"usernameOrEmail\": \"admin\",\n  \"password\": \"Admin@123\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["const d = pm.response.json().data;", "if(d && d.token) pm.collectionVariables.set('adminToken', d.token);"] } }]
+        },
+        {
+          "name": "Logout",
+          "request": { "method": "POST", "url": "{{baseUrl}}/api/auth/logout", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }] }
+        }
+      ]
+    },
+    {
+      "name": "Account & Dashboard",
+      "item": [
+        {
+          "name": "Get Dashboard",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/accounts/dashboard", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }] },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200 OK', () => pm.response.to.have.status(200));", "pm.test('Balance numeric', () => pm.expect(pm.response.json().data.availableBalance).to.be.a('number'));"] } }]
+        },
+        {
+          "name": "Lookup Receiver Account",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/accounts/lookup?accountNumber=100100000002&ifscCode=SECURE000001", "host": ["{{baseUrl}}"], "path": ["api","accounts","lookup"], "query": [{ "key": "accountNumber", "value": "100100000002" }, { "key": "ifscCode", "value": "SECURE000001" }] },
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200 OK', () => pm.response.to.have.status(200));", "pm.test('Rahul found', () => pm.expect(pm.response.json().data.customerName).to.equal('Rahul Sharma'));"] } }]
+        }
+      ]
+    },
+    {
+      "name": "Transactions & Transfers",
+      "item": [
+        {
+          "name": "IMPS Transfer (Siddartha → Rahul)",
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/api/transactions/transfer",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"receiverAccountNumber\": \"100100000002\",\n  \"receiverIfscCode\": \"SECURE000001\",\n  \"amount\": 1000.00,\n  \"transferType\": \"IMPS\",\n  \"description\": \"Transfer via Postman\",\n  \"idempotencyKey\": \"TXK-IMPS-TEST-001\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Transfer SUCCESS', () => pm.expect(pm.response.json().data.status).to.equal('SUCCESS'));", "pm.collectionVariables.set('lastRef', pm.response.json().data.referenceNumber);"] } }]
+        },
+        {
+          "name": "Repeat Same Transfer (Idempotency Check)",
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/api/transactions/transfer",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"receiverAccountNumber\": \"100100000002\",\n  \"receiverIfscCode\": \"SECURE000001\",\n  \"amount\": 1000.00,\n  \"transferType\": \"IMPS\",\n  \"description\": \"Transfer via Postman\",\n  \"idempotencyKey\": \"TXK-IMPS-TEST-001\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Idempotent response', () => pm.expect(pm.response.json().data.isIdempotent).to.equal(true));"] } }]
+        },
+        {
+          "name": "Get Transaction History",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/transactions/history?page=0&size=10", "host": ["{{baseUrl}}"], "path": ["api","transactions","history"], "query": [{ "key": "page", "value": "0" }, { "key": "size", "value": "10" }] },
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Get Transaction by Reference",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/transactions/{{lastRef}}", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }] }
+        },
+        {
+          "name": "Get Statement (Last 30 Days)",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/transactions/statement", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }] }
+        },
+        {
+          "name": "Get Statement (Custom Range)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/transactions/statement?startDate=2026-01-01&endDate=2026-12-31", "host": ["{{baseUrl}}"], "path": ["api","transactions","statement"], "query": [{ "key": "startDate", "value": "2026-01-01" }, { "key": "endDate", "value": "2026-12-31" }] },
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Export Statement as CSV",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/transactions/statement/csv", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }] }
+        }
+      ]
+    },
+    {
+      "name": "Beneficiary Management",
+      "item": [
+        {
+          "name": "Add Beneficiary",
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/api/beneficiaries",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"beneficiaryAccountNumber\": \"100100000002\",\n  \"ifscCode\": \"SECURE000001\",\n  \"bankName\": \"SecureBank\",\n  \"nickname\": \"Rahul - Friend\"\n}" }
+          }
+        },
+        {
+          "name": "Get All Beneficiaries",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/beneficiaries", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }] }
+        },
+        {
+          "name": "Delete Beneficiary (ID=1)",
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/api/beneficiaries/1", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }] }
+        }
+      ]
+    },
+    {
+      "name": "Bill Payments",
+      "item": [
+        {
+          "name": "Pay Electricity Bill",
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/api/bills/pay",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"billCategory\": \"ELECTRICITY\",\n  \"billerName\": \"TSSPDCL\",\n  \"consumerNumber\": \"TSSP-12345678\",\n  \"amount\": 1250.00,\n  \"description\": \"Monthly electricity - September 2026\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Bill paid', () => pm.expect(pm.response.json().data.status).to.equal('SUCCESS'));"] } }]
+        },
+        {
+          "name": "Pay Mobile Bill",
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/api/bills/pay",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"billCategory\": \"MOBILE\",\n  \"billerName\": \"Airtel\",\n  \"consumerNumber\": \"9876543210\",\n  \"amount\": 299.00,\n  \"description\": \"Airtel postpaid\"\n}" }
+          }
+        },
+        {
+          "name": "Pay Internet Bill",
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/api/bills/pay",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"billCategory\": \"INTERNET\",\n  \"billerName\": \"Jio Fiber\",\n  \"consumerNumber\": \"JIO-987654321\",\n  \"amount\": 999.00,\n  \"description\": \"Jio Fiber plan\"\n}" }
+          }
+        },
+        {
+          "name": "Get Bill Payment History",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/bills/history", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }] }
+        }
+      ]
+    },
+    {
+      "name": "Dormant Account Management",
+      "item": [
+        {
+          "name": "Submit Reactivation Request",
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/api/dormant/reactivate",
+            "header": [{ "key": "Authorization", "value": "Bearer {{vikramToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"I want to resume regular banking activities.\",\n  \"confirmIdentity\": true\n}" }
+          }
+        },
+        {
+          "name": "Get My Reactivation Requests",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/dormant/requests", "header": [{ "key": "Authorization", "value": "Bearer {{vikramToken}}" }] }
+        }
+      ]
+    },
+    {
+      "name": "Admin Portal",
+      "item": [
+        {
+          "name": "Get All Accounts",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/admin/accounts", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }] },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Admin can list accounts', () => pm.response.to.have.status(200));"] } }]
+        },
+        {
+          "name": "Freeze Account (ID=2)",
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/api/admin/accounts/2/freeze",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Suspected fraudulent activity\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Account frozen', () => pm.expect(pm.response.json().data.status).to.equal('FROZEN'));"] } }]
+        },
+        {
+          "name": "Unfreeze Account (ID=2)",
+          "request": { "method": "POST", "url": "{{baseUrl}}/api/admin/accounts/2/unfreeze", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }] },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Account active', () => pm.expect(pm.response.json().data.status).to.equal('ACTIVE'));"] } }]
+        },
+        {
+          "name": "Get Pending Reactivations",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/admin/reactivations", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }] }
+        },
+        {
+          "name": "Approve Reactivation (ID=1)",
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/api/admin/reactivations/1/review",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"approved\": true,\n  \"notes\": \"Identity verified. Reactivating account.\"\n}" }
+          }
+        },
+        {
+          "name": "Get Audit Logs",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/admin/audits?page=0&size=20", "host": ["{{baseUrl}}"], "path": ["api","admin","audits"], "query": [{ "key": "page", "value": "0" }, { "key": "size", "value": "20" }] },
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Security & Edge Case Tests",
+      "item": [
+        {
+          "name": "Unauthenticated Request → 401",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/accounts/dashboard" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('401 without token', () => pm.response.to.have.status(401));"] } }]
+        },
+        {
+          "name": "Customer Accessing Admin → 403",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/admin/accounts", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }] },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('403 customer cannot admin', () => pm.response.to.have.status(403));"] } }]
+        },
+        {
+          "name": "Transfer to Dormant Account → 403",
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/api/transactions/transfer",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"receiverAccountNumber\": \"100100000003\",\n  \"receiverIfscCode\": \"SECURE000001\",\n  \"amount\": 500.00,\n  \"transferType\": \"IMPS\",\n  \"idempotencyKey\": \"TXK-DORMANT-TEST-001\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Dormant account rejected', () => pm.response.to.have.status(403));"] } }]
+        },
+        {
+          "name": "Insufficient Funds → 400/422",
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/api/transactions/transfer",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"receiverAccountNumber\": \"100100000002\",\n  \"receiverIfscCode\": \"SECURE000001\",\n  \"amount\": 9999999.00,\n  \"transferType\": \"IMPS\",\n  \"idempotencyKey\": \"TXK-INSUFFICIENT-001\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Insufficient funds rejected', () => pm.expect(pm.response.code).to.be.oneOf([400, 422, 409]));"] } }]
+        }
+      ]
+    }
+  ]
+}
